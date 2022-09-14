@@ -36,10 +36,18 @@ namespace TableControlsDockpane
 {
 	public class TabItemViewModel : INotifyPropertyChanged
 	{
+		private int _lastRowIdx = -1;
+		private int _ActiveRowIdx;
+		public string TableName => MapMember?.Name;
+		private ICommand _zoomToRowCommand = null;
+	
 		public ICommand TableCloseCommand { get; set; }
+		public TableControlContent TableContent { get; set; }
+		public MapMember MapMember { get; set; }		
+		public DependencyObject VisualTreeRoot { get; set; }
+		public ContextMenu RowContextMenu { get; set; }
 
-		public TabItemViewModel(MapMember mapMember,
-														DependencyObject visualTreeRoot)
+		public TabItemViewModel(MapMember mapMember, DependencyObject visualTreeRoot)
 		{
 			TableContent = TableControlContentFactory.Create(mapMember);
 			MapMember = mapMember;
@@ -55,45 +63,33 @@ namespace TableControlsDockpane
 			RowContextMenu.Items.Add(zoomItem);
 		}
 
-		public TableControlContent TableContent { get; set; }
-
-		public MapMember MapMember { get; set; }
-
-		private int _lastRowIdx = -1;
-private int _ActiveRowIdx;
-public int ActiveRowIdx
-{
-	get { return _ActiveRowIdx; }
-	set
-	{
-		_ActiveRowIdx = value;
-		NotifyPropertyChanged(nameof(ActiveRowIdx));
-		var tableControl = VisualTreeRoot.GetChildOfType<TableControl>();
-		if (tableControl != null)
+		public int ActiveRowIdx
 		{
-			var rowIdx = tableControl.ActiveRowIndex;
-					if (rowIdx == _lastRowIdx) return;
-					_lastRowIdx = rowIdx;
-			System.Diagnostics.Debug.WriteLine($@"row: {rowIdx}");
-			_ = GetObjectIdAsync(tableControl, rowIdx);
+			get { return _ActiveRowIdx; }
+			set
+			{
+				_ActiveRowIdx = value;
+				NotifyPropertyChanged(nameof(ActiveRowIdx));
+				var tableControl = VisualTreeRoot.GetChildOfType<TableControl>();
+				if (tableControl != null)
+				{
+					var rowIdx = tableControl.ActiveRowIndex;
+							if (rowIdx == _lastRowIdx) return;
+							_lastRowIdx = rowIdx;
+					System.Diagnostics.Debug.WriteLine($@"row: {rowIdx}");
+					_ = GetObjectIdAsync(tableControl, rowIdx);
+				}
+			}
 		}
-	}
-}
 
-public async Task<long> GetObjectIdAsync (TableControl tableControl, int rowIdx)
-{
-	var oid = await tableControl.GetObjectIdAsync(rowIdx);
-	ArcGIS.Desktop.Framework.Dialogs.MessageBox.Show ($@"rowIdx:  {rowIdx} has OID: {oid}");
-	return oid;
-}
+		public async Task<long> GetObjectIdAsync (TableControl tableControl, int rowIdx)
+		{
+			var oid = await tableControl.GetObjectIdAsync(rowIdx);
+			ArcGIS.Desktop.Framework.Dialogs.MessageBox.Show ($@"rowIdx:  {rowIdx} has OID: {oid}");
+			return oid;
+		}
 
-		public DependencyObject VisualTreeRoot { get; set; }
-
-		public ContextMenu RowContextMenu { get; set; }
-
-		public string TableName => MapMember?.Name;
-
-		private ICommand _zoomToRowCommand = null;
+	
 		public ICommand ZoomToRowCommand
 		{
 			get
@@ -102,8 +98,8 @@ public async Task<long> GetObjectIdAsync (TableControl tableControl, int rowIdx)
 				{
 					_zoomToRowCommand = new RelayCommand(async () =>
 					{
-											// if we have some content, a map and our data is added to the map
-											if (MapView.Active != null && MapMember != null && VisualTreeRoot != null)
+						// if we have some content, a map and our data is added to the map
+						if (MapView.Active != null && MapMember != null && VisualTreeRoot != null)
 						{
 							var tableControl = VisualTreeRoot.GetChildOfType<TableControl>();
 							if (tableControl != null)
@@ -114,14 +110,14 @@ public async Task<long> GetObjectIdAsync (TableControl tableControl, int rowIdx)
 
 								var insp = new Inspector();
 								_ = insp.LoadAsync(MapMember, oid).ContinueWith((t) =>
-														{
-																		// zoom
-																		MapView.Active.ZoomToAsync(insp.Shape.Extent, new TimeSpan(0, 0, 0, 1));
-																		// flash 
-																		var basicFl = MapMember as BasicFeatureLayer;
-													if (basicFl != null)
-														MapView.Active.FlashFeature(basicFl, oid);
-												});
+								{
+									// zoom
+									MapView.Active.ZoomToAsync(insp.Shape.Extent, new TimeSpan(0, 0, 0, 1));
+									// flash 
+									var basicFl = MapMember as BasicFeatureLayer;
+									if (basicFl != null)
+										MapView.Active.FlashFeature(basicFl, oid);
+								});
 							}
 						}
 					});
